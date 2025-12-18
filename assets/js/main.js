@@ -540,7 +540,15 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
         };
     });
 
+    // Store watching channel in URL to enable back button.
+    const u = new URL(location.href);
+    if ( u.searchParams.get("lcn") != lcn ) {
+      u.searchParams.set("lcn", lcn);
+      history.pushState(lcn, "", u.href);
+    }
+
     document.title = `${name} - Zappr`;
+
     const img = document.querySelector(`img[src="${logo}"]`);
     const canvas = document.querySelector("canvas");
 
@@ -667,12 +675,12 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
             case "iframe":
                 if (!["twitch", "youtube", "iframe"].includes(currentType)) player.reset();
                 
-                let iframe;
-                if (document.querySelector("iframe") === null) {
-                    iframe = document.createElement("iframe");
-                } else {
-                    iframe = document.querySelector("iframe");
-                };
+                let iframe = document.querySelector("iframe");
+                if ( iframe ) {
+                    //  https://stackoverflow.com/questions/69905406/iframe-messing-up-browser-history-adding-current-page-to-history
+                    iframe.remove();
+                }
+                iframe = document.createElement("iframe");
                 
                 iframe.allowFullscreen = true;
                 iframe.allow = "autoplay *; encrypted-media *;";
@@ -968,6 +976,36 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
         await loadStream({ type: type, url: url, api: api, name: name, lcn: lcn, logo: logo, fullLogo: fullLogo, radio: radio, http: http, feed: feed, fallbackType: fallbackType, fallbackURL: fallbackURL, fallbackAPI: fallbackAPI, timeshift: timeshift })
     };
 };
+
+
+// closeEPG closes the EPG side panel. Returns false if it wasn't open.
+function closeEPG() {
+    if ( ! document.querySelector("#channels-column").classList.contains("epg-visible") ) {
+        return false
+    }
+    const img = document.querySelector('.epg-image.medium-zoom-image--opened');
+    if (img) {
+        // Close the EPG image too if it was open.
+        img.click();
+    }
+    document.querySelector("#channels-column").classList.remove("epg-visible");
+    document.querySelector("#channels-column").classList.remove("epg-expanded");
+    return true;
+}
+
+// Listens for page back events.
+window.addEventListener('popstate', (ev) => {
+    // If epg is visible
+    if ( closeEPG() ) {
+        return;
+    }
+
+    const u = new URL(location.href);
+    const ch = u.searchParams.get('lcn')
+    if ( ch ) {
+        selectChannel(ch);
+    }
+});
 
 const getChannelLogoURL = (logo, optimized) => {
     const config = zappr.config.logos;
@@ -1286,6 +1324,8 @@ const channelOnClick = async (e) => {
     } else if ((["channel-program", "channel-program-progress", "channel-program-progress-background", "channel-program-times"].includes(e.target.className) || e.target.nodeName === "B")) {
         if (!el.classList.contains("channel")) el = el.closest(".channel");
         document.querySelector("#epg-channel").innerText = el.dataset.name;
+        // Open EPG
+        window.history.pushState('epg', '');
         document.querySelector("#channels-column").classList.add("epg-visible");
         document.querySelectorAll(".epg-items").forEach(el => el.remove());
         document.querySelector("#channels-column").classList.remove("overflow-visible");
@@ -2541,8 +2581,12 @@ setInterval(async () => {
 }, 3600000);
 
 document.querySelector("#epg-exit").addEventListener("click", () => {
-    document.querySelector("#channels-column").classList.remove("epg-visible");
-    document.querySelector("#channels-column").classList.remove("epg-expanded");
+    // Close EPG
+    if ( window.history.state === "epg" ) {
+        window.history.back();
+    } else {
+        closeEPG();
+    }
 });
 document.querySelector("#epg-resize").addEventListener("click", () => document.querySelector("#channels-column").classList.toggle("epg-expanded"));
 document.querySelector("#epg-next-day").addEventListener("click", () => {
