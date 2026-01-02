@@ -5,6 +5,11 @@
     }
 }
 
+html {
+    font-size: clamp(11pt, 1.15vw, 25px);
+    --program-progress-height: 24px;
+}
+
 #block-message {
     display: flex;
     flex-direction: column;
@@ -136,10 +141,11 @@ a {
 }
 .channel-category {
     text-align: center;
-    padding-top: 2.5rem;
-    padding-bottom: 1.5rem;
+    padding-top: 2.3rem;
+    padding-bottom: 0.5rem;
+    font-size: 1.6rem;
     margin: 0;
-    scroll-margin-top: calc(-3.75rem + 1px);
+    scroll-margin-top: calc(-2.3rem + 1px);
 }
 .channel:first-of-type {
     scroll-margin-top: 3rem;
@@ -222,7 +228,6 @@ a {
 .channel {
     height: auto;
     align-items: center;
-    font-size: 1.5rem;
     transition: .25s all ease-in-out;
     will-change: background;
     display: block;
@@ -266,7 +271,6 @@ a {
 .channel-program {
     color: grey;
     transition: 250ms;
-    font-size: 1rem;
     margin-top: 0.25rem;
     line-height: 1;
     opacity: 1;
@@ -296,14 +300,14 @@ a {
     z-index: 0;
 }
 .channel:hover .channel-program-progress, .channel.androidtv-active .channel-program-progress, .channel.watching .channel-program-progress {
-    height: 24px;
+    height: var(--program-progress-height);
     z-index: 0;
     position: relative;
     margin-top: 0;
 }
 .channel:hover .channel-program-progress-background, .channel.androidtv-active .channel-program-progress-background, .channel.watching .channel-program-progress-background {
-    margin-top: -24px;
-    height: 24px;
+    margin-top: calc( -1 * var(--program-progress-height));
+    height: var(--program-progress-height);
     z-index: 0;
     position: relative;
     background: rgb(0 178 255 / 25%);
@@ -316,8 +320,7 @@ a {
     display: flex;
     justify-content: space-between;
     padding: 0 1rem;
-    font-size: 1rem;
-    line-height: 1;
+    height: var(--program-progress-height);
     z-index: 10;
     width: calc(100% - 2rem);
     font-weight: bold;
@@ -326,6 +329,11 @@ a {
     user-select: none;
     pointer-events: none;
 }
+.channel-program-times > div {
+    line-height: var(--program-progress-height);
+    font-size: 20px;
+}
+
 .channel-program-start-time {
     color: black;
 }
@@ -358,7 +366,7 @@ body:not(.androidtv) .channel-program-end-time {
     transition: 500ms;
 }
 #search-input input {
-    width: calc(100% - 2.5rem - 2px);
+    width: 100%;
     background-image: url(/assets/icons/search.svg);
     background-color: transparent;
     height: 1.5rem;
@@ -373,8 +381,6 @@ body:not(.androidtv) .channel-program-end-time {
 .toast-notification-container {
     position: absolute;
     bottom: 0;
-    width: calc(25vw - 4.5rem);
-    left: 2rem;
     height: 2.5rem;
     display: flex;
     justify-content: center;
@@ -422,7 +428,7 @@ body:not(.androidtv) .channel-program-end-time {
 #channels-column.search-visible #search-input {
     bottom: 3rem;
     pointer-events: all;
-    height: 1.75rem;
+    height: 3.8rem;
     padding: 1rem 2rem;
 }
 #channels-column.epg-visible #channels, #channels-column.epg-visible #search-results {
@@ -460,7 +466,7 @@ body:not(.androidtv) .channel-program-end-time {
     box-shadow: 0 -4px 30px rgb(0 0 0 / 10%);
     backdrop-filter: blur(5px);
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     text-align: center;
     padding: 1rem;
     display: flex;
@@ -481,7 +487,7 @@ body:not(.androidtv) .channel-program-end-time {
 }
 #epg-date {
     font-weight: 400;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     line-height: 1;
     display: flex;
     justify-content: center;
@@ -573,8 +579,11 @@ body:not(.androidtv) .channel-program-end-time {
     transition: 500ms;
 }
 .epg-image {
-    width: calc(25vw * 0.4 - 0.25rem);
+    width: clamp(100px, 14vw ,300px);
     height: auto;
+}
+.epg-item-container.expandable.expanded .epg-image {
+    margin-left: calc( -1 * clamp(100px, 14vw ,300px));
 }
 .epg-info {
     padding: 1rem 0;
@@ -639,7 +648,7 @@ body:not(.androidtv) .channel-program-end-time {
     opacity: 1 !important;
 }
 .epg-name {
-    font-size: 1.3333rem;
+    font-size: 1.1rem;
     line-height: 1;
     padding-right: 1rem;
     margin: 0;
@@ -731,9 +740,6 @@ body:not(.androidtv) .channel-program-end-time {
     height: 1rem;
     filter: invert(1);
 }
-.epg-item-container.expandable.expanded .epg-image {
-    margin-left: -40%;
-}
 .epg-item-container.expandable.expanded .epg-description p {
     max-height: 100%;
     transition: 500ms;
@@ -775,7 +781,6 @@ body:not(.androidtv) .channel:not([disabled]):hover, .channel.androidtv-active, 
     margin-left: 1rem;
     background: #111111;
     width: max-content;
-    font-size: 1.25rem;
     display: flex;
     align-items: center;
     height: 40%;
@@ -802,10 +807,10 @@ body:not(.androidtv) .channel:not([disabled]):hover, .channel.androidtv-active, 
 }
 .channel-name {
     font-weight: 700;
-    font-size: 1.5rem;
+    font-size: 1.1rem;
 }
 .hbbtv-channels .channel-name {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
 }
 .channel-subtitle {
     margin-top: 0.25rem;
@@ -818,8 +823,7 @@ body:not(.androidtv) .channel:not([disabled]):hover, .channel.androidtv-active, 
 .logo {
     max-height: 5rem;
     object-fit: contain;
-    min-width: 80px;
-    width: 80px;
+    width: clamp(40px, 5vw, 80px);
     height: calc(80px * var(--ratio));
     margin-left: 0.5rem;
 }
@@ -836,7 +840,7 @@ body:not(.androidtv) .channel:not([disabled]):hover, .channel.androidtv-active, 
     font-size: 1.325rem;
     font-weight: 700;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     padding: 0.75rem;
 }
@@ -1313,7 +1317,7 @@ a.tooltip-link {
     border-radius: 0.5rem;
     margin: 0 0.75rem;
     background: #181818;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     height: auto;
     transition: .25s all ease-in-out;
     will-change: transform;
@@ -1325,7 +1329,7 @@ a.tooltip-link {
     transform: rotate(90deg);
 }
 .hbbtv-channels .channel {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     height: auto;
     min-height: 1.75rem;
     padding: 0.5rem 1rem;
@@ -1428,24 +1432,15 @@ a.tooltip-link {
 #overlays.hbbtv-app #fullscreen-button-container:hover #fullscreen-button, #overlays.pluto-channel #fullscreen-button-container:hover #fullscreen-button, #overlays.radio-overlay:not(:fullscreen) #fullscreen-button-container #fullscreen-button, #overlays.radio-overlay:fullscreen #fullscreen-button-container:hover #fullscreen-button {
     transform: translateY(0);
 }
-#overlays.hbbtv-app iframe, #overlays.pluto-channel iframe {
-    aspect-ratio: 16 / 9;
-    width: 100vw;
-    position: absolute;
-    top: 50%;
-    --hbbtv-wrapper-scale: 75%;
-    transform: translate(calc((100% - var(--hbbtv-wrapper-scale)) / 2 * -1), -50%) scale(calc(var(--hbbtv-wrapper-scale) * var(--hbbtv-wrapper-scale-multiplier, 1)));
-}
-#overlays.hbbtv-app iframe {
-    height: auto;
-}
 #overlays.pluto-channel iframe {
-    height: 500vh;
+    /* setting offset to 160vh hides pluto's OSD 
+       but messes up with the cover image */
+    --offset: 0vh;
+    height: calc(100% + var(--offset));
+    margin-top: calc( -.5 * var(--offset) );
+    width: 100%;
     user-select: none;
     pointer-events: none;
-}
-#overlays.hbbtv-app:fullscreen iframe, #overlays.pluto-channel:fullscreen iframe {
-    --hbbtv-wrapper-scale: 100%;
 }
 #overlays #radio-overlay {
     height: 100%;
@@ -1555,7 +1550,15 @@ a#reopen-window svg {
 .modal-buttons .button svg {
     margin-left: 1rem;
 }
-@media screen and (max-width: 100vh) {
+
+#search-input, .toast-notification-container {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* enables vertical mode 
+  * must be the opposite condition of the next media query */
+@media screen and (min-height: calc(60vw + 25ex) ) {
     .channel.hbbtv-app {
         display: none;
     }
@@ -1578,12 +1581,6 @@ a#reopen-window svg {
     }
     #epg-resize {
         display: none;
-    }
-    .epg-image {
-        width: calc(100vw * 0.4 - 0.25rem);
-    }
-    .epg-item-container.expandable.expanded .epg-image {
-        margin-left: calc(100vw * -0.4 + 0.25rem);
     }
     #channels, #search-results, #epg {
         margin-top: 56.25%;
@@ -1618,9 +1615,6 @@ a#reopen-window svg {
         height: auto;
         aspect-ratio: 16 / 9;
     }
-    #overlays.pluto-channel iframe {
-        --hbbtv-wrapper-scale: 100%;
-    }
     .modal-buttons {
         flex-direction: column;
     }
@@ -1643,9 +1637,6 @@ a#reopen-window svg {
     #news {
         height: calc(100vh - 56.25vw);
     }
-    #search-input, .toast-notification-container {
-        width: calc(100vw - 4.5rem);
-    }
     .epg-item {
         backdrop-filter: brightness(0.05);
     }
@@ -1661,114 +1652,30 @@ a#reopen-window svg {
         box-shadow: none;
     }
 }
-@media screen and (min-width: 769px) {
+
+/* enables two columns
+  * must be the opposite condition of the previous media query */
+@media screen and (max-height: calc(60vw + 25ex)) {
     .columns {
         display: flex;
     }
-    .column.is-two-fifths-tablet {
-        flex: none;
-        width: 40%;
+    
+    html {
+        --first-col: clamp(20em, 30%, 30rem);
+        --second-col: calc(100% - var(--first-col));
+        &:has(#channels-column.epg-expanded) {
+            --first-col: 60%;
+            --first-col: clamp(30rem, 50%, 80%);
+        }
     }
-    #channels-column.epg-expanded {
-        width: 60%;
+    #tv, #overlays {
+        width: var(--second-col);
     }
-    .epg-image {
-        width: calc(40vw * 0.4 - 0.25rem);
-    }
-    .epg-item-container.expandable.expanded .epg-image {
-        margin-left: calc(40vw * -0.4 + 0.25rem);
-    }
-    #search-input, .toast-notification-container {
-        width: calc(40vw - 4.5rem);
-    }
-    #overlays {
-        width: 60%;
-    }
-    #overlays.hbbtv-app iframe {
-        --hbbtv-wrapper-scale: 60%;
-    }
-}
-@media screen and (min-width: 1024px) {
-    .column.is-two-fifths-desktop {
-        flex: none;
-        width: 40%;
-    }
-    .epg-image {
-        width: calc(40vw * 0.4 - 0.25rem);
-    }
-    .epg-item-container.expandable.expanded .epg-image {
-        margin-left: calc(40vw * -0.4 + 0.25rem);
-    }
-    #search-input, .toast-notification-container {
-        width: calc(40vw - 4.5rem);
-    }
-    #overlays {
-        width: 60%;
-    }
-    #overlays.hbbtv-app iframe {
-        --hbbtv-wrapper-scale: 60%;
-    }
-    #channels-column.epg-expanded {
-        width: 50%;
-    }
-}
-@media screen and (min-width: 1216px) {
-    .column.is-one-third-widescreen {
-        flex: none;
-        width: 33.3333%;
-    }
-    .epg-image {
-        width: calc(33.3333vw * 0.4 - 0.25rem);
-    }
-    .epg-item-container.expandable.expanded .epg-image {
-        margin-left: calc(33.3333vw * -0.4 + 0.25rem);
-    }
-    #search-input, .toast-notification-container {
-        width: calc(33.3333vw - 4.5rem);
-    }
-    #overlays {
-        width: 66.6666%;
-    }
-    #overlays.hbbtv-app iframe {
-        --hbbtv-wrapper-scale: 66.66666%;
-    }
-    #channels-column.epg-expanded {
-        width: 40%;
-    }
-}
-@media screen and (min-width: 1408px) {
-    .column.is-one-quarter-fullhd {
-        flex: none;
-        width: 25%;
-    }
-    .epg-image {
-        width: calc(25vw * 0.4 - 0.25rem);
-    }
-    .epg-item-container.expandable.expanded .epg-image {
-        margin-left: calc(25vw * -0.4 + 0.25rem);
-    }
-    #search-input, .toast-notification-container {
-        width: calc(25vw - 4.5rem);
-    }
-    #overlays {
-        width: 75%;
-    }
-    #overlays.hbbtv-app iframe {
-        --hbbtv-wrapper-scale: 75%;
-    }
-    #channels-column.epg-expanded {
-        width: 40%;
+    #channels-column {
+        width: var(--first-col);
     }
 }
 @media screen and (max-width: 1023px) {
-    .channel {
-        font-size: 1.25rem;
-    }
-    .logo {
-        min-width: 60px;
-        width: 60px;
-        height: calc(60px * var(--ratio));
-    }
     .samsung-logo {
         height: 60px;
     }
