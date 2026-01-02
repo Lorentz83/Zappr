@@ -7,6 +7,7 @@ import "videojs-contrib-eme";
 import VirtualList from "./virtualizedlist";
 import locales from "./locales";
 import countries from "./countries";
+import FavSet from "./favset"
 
 let ipLocation = await fetch("https://zappr.stream/cdn-cgi/trace")
     .then(response => response.text())
@@ -126,6 +127,14 @@ await fetch("/config.json")
             }
         };
     });
+
+window.zappr.favourites = new FavSet(selectedCountry);
+const favImported = window.zappr.favourites.fromURL(window.location)
+if ( favImported ) {
+    // TODO it would be nice a snackbar here to notify the user.
+    alert('favourites imported');
+    history.replaceState(null, '', favImported);
+}
 
 try {
     fetch(`${zappr.config.urgentalerts.host}/${selectedCountry}`)
@@ -531,7 +540,15 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
         };
     });
 
+    // Store watching channel in URL to enable back button.
+    const u = new URL(location.href);
+    if ( u.searchParams.get("lcn") != lcn ) {
+      u.searchParams.set("lcn", lcn);
+      history.pushState(lcn, "", u.href);
+    }
+
     document.title = `${name} - Zappr`;
+
     const img = document.querySelector(`img[src="${logo}"]`);
     const canvas = document.querySelector("canvas");
 
@@ -658,12 +675,12 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
             case "iframe":
                 if (!["twitch", "youtube", "iframe"].includes(currentType)) player.reset();
                 
-                let iframe;
-                if (document.querySelector("iframe") === null) {
-                    iframe = document.createElement("iframe");
-                } else {
-                    iframe = document.querySelector("iframe");
-                };
+                let iframe = document.querySelector("iframe");
+                if ( iframe ) {
+                    //  https://stackoverflow.com/questions/69905406/iframe-messing-up-browser-history-adding-current-page-to-history
+                    iframe.remove();
+                }
+                iframe = document.createElement("iframe");
                 
                 iframe.allowFullscreen = true;
                 iframe.allow = "autoplay *; encrypted-media *;";
@@ -960,6 +977,36 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
     };
 };
 
+
+// closeEPG closes the EPG side panel. Returns false if it wasn't open.
+function closeEPG() {
+    if ( ! document.querySelector("#channels-column").classList.contains("epg-visible") ) {
+        return false
+    }
+    const img = document.querySelector('.epg-image.medium-zoom-image--opened');
+    if (img) {
+        // Close the EPG image too if it was open.
+        img.click();
+    }
+    document.querySelector("#channels-column").classList.remove("epg-visible");
+    document.querySelector("#channels-column").classList.remove("epg-expanded");
+    return true;
+}
+
+// Listens for page back events.
+window.addEventListener('popstate', (ev) => {
+    // If epg is visible
+    if ( closeEPG() ) {
+        return;
+    }
+
+    const u = new URL(location.href);
+    const ch = u.searchParams.get('lcn')
+    if ( ch ) {
+        selectChannel(ch);
+    }
+});
+
 const getChannelLogoURL = (logo, optimized) => {
     const config = zappr.config.logos;
 
@@ -1014,6 +1061,7 @@ const generateChannelHTML = (channel) => {
             ? `${channel.hbbtv ? `<div class="hbbtv-container">` : ""}
                 <div class="${channel.hbbtvapp ? "hbbtv-app" : ""}${channel.url && channel.url.includes("pluto.tv") ? "pluto-channel" : ""} ${channel.hbbtvmosaic ? "hbbtv-enabler hbbtv-mosaic": "channel"} ${channel.adult === true ? "adult" : channel.adult === "night" ? "adult at-night" : ""}" data-name="${channel.name}" data-lowercase-name="${channel.name.toLowerCase()}" data-logo="${getChannelLogoURL(channel.logo)}" data-full-logo="${getChannelLogoURL(channel.logo, false)}" ${channel.radio ? `data-radio="${channel.radio}"` : ""} ${channel.type != undefined && (!isGeoblocked || !channel.geoblock) ? `data-type="${channel.type}"` : ""} ${channel.type != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-type="${channel.geoblock.type}"` : ""} ${channel.url != undefined && (!isGeoblocked || !channel.geoblock) ? `data-url="${channel.url}"` : ""} ${channel.url != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-url="${channel.geoblock.url}"` : ""} data-lcn="${channel.lcn}" ${channel.seek != undefined ? `data-seek="${channel.seek}"` : ""} ${channel.disabled ? `disabled data-disabled="${channel.disabled}" title="${returnErrorMessage(channel.disabled)}"` : ""} ${!channel.disabled && channel.http && isiOS ? `disabled data-disabled="http-ios"` : ""} ${!channel.disabled && channel.geoblock && isGeoblocked && typeof channel.geoblock === "boolean" ? `disabled data-disabled="geoblock" title="${returnErrorMessage('geoblock')}"` : ""} ${channel.api && (!isGeoblocked || !channel.geoblock) ? `data-api="${channel.api}"` : ""} ${typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked && channel.geoblock.api != undefined ? `data-api="${channel.geoblock.api}"` : ""} ${channel.cssfix ? `data-cssfix="${channel.cssfix}"` : ""} ${channel.http ? `data-http="true"` : ""} ${channel.license != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license="${channel.license}"` : ""} ${channel.license === undefined && typeof channel.geoblock === "object" && channel.geoblock.license && isGeoblocked ? `data-license="${channel.geoblock.license}"` : ""} ${channel.licensedetails != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license-details="${channel.licensedetails}"` : ""} ${channel.licensedetails === undefined && typeof channel.geoblock === "object" && channel.geoblock.licensedetails && isGeoblocked ? `data-license-details="${channel.geoblock.licensedetails}"` : ""} ${channel.feed ? `data-feed="${channel.feed}"` : ""} ${channel.fallback ? `data-fallback-type="${channel.fallback.type}" data-fallback-url="${channel.fallback.url}"` : ""} ${channel.fallback && channel.fallback.api ? `data-fallback-api="${channel.fallback.api}"` : ""} ${channel.epg ? `data-epg-source="${channel.epg.source}" data-epg-id="${channel.epg.id}"` : ""} ${channel.manualRestart ? `data-manual-restart-source="${channel.manualRestart.source}" data-manual-restart-id="${channel.manualRestart.id}"` : ""} ${channel.timeshift ? `data-timeshift="${channel.timeshift}"` : ""} ${categoryIndexes.findLastIndex(category => channelIndex > category) > 0 ? `data-category="${zappr.channels[categoryIndexes[categoryIndexes.findLastIndex(category => channelIndex > category)]].categorySeparator}"` : ""}>
                     <div class="channel-info">
+                        <input type="checkbox" class="ch-fav-btn" data-ch="${channel.lcn}" ${window.zappr.favourites.has(''+channel.lcn) ? "checked" : ""}>
                         <div class="lcn">${channel.lcn}</div>
                         <img class="logo${channel.logo.startsWith("http://") || channel.logo.startsWith("https://") ? " fast-logo" : ""}${channel.logo.includes("tvpdotcomdynamiclogopeu.samsungcloud.tv") ? " samsung-logo" : ""}" src="${getChannelLogoURL(channel.logo)}" crossorigin="anonymous" loading="lazy" style="--ratio: ${zappr.ratios && zappr.ratios[channel.logo] ? zappr.ratios[channel.logo] : "0.75"};">
                         <div class="channel-title-subtitle">
@@ -1051,6 +1099,7 @@ const generateChannelHTML = (channel) => {
                         subchannel.categorySeparator === undefined
                             ? `<div class="channel ${subchannel.hbbtvapp ? "hbbtv-app" : ""} ${subchannel.adult === true ? "adult" : subchannel.adult === "night" ? "adult at-night" : ""}" data-name="${subchannel.name}" data-lowercase-name="${subchannel.name.toLowerCase()}" data-logo="${getChannelLogoURL(subchannel.logo)}" data-full-logo="${getChannelLogoURL(subchannel.logo, false)}" ${subchannel.radio ? `data-radio="${subchannel.radio}"` : ""} ${subchannel.type != undefined ? `data-type="${subchannel.type}"` : ""} ${subchannel.url != undefined ? `data-url="${subchannel.url}"` : ""} data-lcn="${channel.lcn}.${subchannel.sublcn}" ${subchannel.seek ? `data-seek="${subchannel.seek}"` : ""} ${subchannel.disabled ? `disabled data-disabled="${subchannel.disabled}"` : ""} ${!subchannel.disabled && subchannel.http && isiOS ? `disabled data-disabled="http-ios"` : ""} ${!subchannel.disabled && subchannel.geoblock && isGeoblocked && typeof subchannel.geoblock === "boolean"? `disabled data-disabled="geoblock"` : ""} ${subchannel.api && (!isGeoblocked || !subchannel.geoblock) ? `data-api="${subchannel.api}"` : ""} ${typeof subchannel.geoblock === "object" && subchannel.geoblock && isGeoblocked && subchannel.geoblock.api != undefined ? `data-api="${subchannel.geoblock.api}"` : ""} ${subchannel.cssfix ? `data-cssfix="${subchannel.cssfix}"` : ""} ${subchannel.http ? `data-http="true"` : ""} ${subchannel.license ? `data-license="${subchannel.license}"` : ""} ${subchannel.licensedetails ? `data-license-details="${subchannel.licensedetails}"` : ""} ${subchannel.feed ? `data-feed="${subchannel.feed}"` : ""} ${subchannel.fallback ? `data-fallback-type="${subchannel.fallback.type}" data-fallback-url="${subchannel.fallback.url}"` : ""} ${subchannel.fallback && subchannel.fallback.api ? `data-fallback-api="${subchannel.fallback.api}"` : ""} ${subchannel.epg ? `data-epg-source="${subchannel.epg.source}" data-epg-id="${subchannel.epg.id}"` : ""}>
                                 <div class="channel-info">
+                                    <input type="checkbox" class="ch-fav-btn" data-ch="${channel.lcn}.${subchannel.sublcn}" ${window.zappr.favourites.has(''+channel.lcn+"."+subchannel.sublcn) ? "checked" : ""} >
                                     <div class="lcn">${channel.lcn}.${subchannel.sublcn}</div>
                                     <img class="logo" src="${getChannelLogoURL(subchannel.logo)}" data-full="${getChannelLogoURL(subchannel.logo, false)}" crossorigin="anonymous" loading="lazy" style="--ratio: ${zappr.ratios && zappr.ratios[subchannel.logo] ? zappr.ratios[subchannel.logo] : "0.75"};">
                                     <div class="channel-title-subtitle">
@@ -1162,6 +1211,18 @@ const updateHbbTVChannelsHeight = () => {
 const channelOnClick = async (e) => {
     updateHbbTVChannelsHeight();
     let el = e.target;
+
+    if (el.classList.contains("ch-fav-btn")){
+        // favourite button.
+        const ch = el.dataset["ch"];
+        if (el.checked) {
+            window.zappr.favourites.add(ch);
+        } else {
+            window.zappr.favourites.delete(ch);
+        }
+        return;
+    }
+
     if (el.closest(".hbbtv-mosaic")) el = el.closest(".hbbtv-mosaic");
 
     if (el.classList.contains("hbbtv-enabler")) {
@@ -1263,6 +1324,8 @@ const channelOnClick = async (e) => {
     } else if ((["channel-program", "channel-program-progress", "channel-program-progress-background", "channel-program-times"].includes(e.target.className) || e.target.nodeName === "B")) {
         if (!el.classList.contains("channel")) el = el.closest(".channel");
         document.querySelector("#epg-channel").innerText = el.dataset.name;
+        // Open EPG
+        window.history.pushState('epg', '');
         document.querySelector("#channels-column").classList.add("epg-visible");
         document.querySelectorAll(".epg-items").forEach(el => el.remove());
         document.querySelector("#channels-column").classList.remove("overflow-visible");
@@ -2341,7 +2404,48 @@ window.zappr.copyInfo = () => {
 let searchUpdateLastCallTime = 0;
 let searchUpdateTimeoutID = null;
 
-document.querySelector("input").addEventListener("input", e => {
+// filterChannels filters the channel list.
+//
+// If the parameter filter is false, filtering is disabled and all the channels are shown.
+// Otherwise filter must be a lamba which accepts channel as parameter and returns a boolean,
+// only channels where filter(ch) == true are shown.
+function filterChannels(filter) {
+    if ( filter === false ) {
+        document.querySelector("#search-results").style.display = "none";
+        document.querySelector("#channels").style.display = "block";
+        document.querySelector("#search").innerHTML = "";
+        document.querySelector("#search-results").innerHTML = "";
+    } else {
+        const elements = zappr.channels.filter(filter);
+        document.querySelector("#search-results").style.display = "block";
+        document.querySelector("#channels").style.display = "none";
+        document.querySelector("#search-results").innerHTML = elements.map(el => generateChannelHTML(el)).join("");
+        document.querySelectorAll("#search-results .channel, #search-results .hbbtv-enabler").forEach(el => el.addEventListener("click", channelOnClick));
+        updateCurrentlyPlayingEPG();
+        document.querySelector("#search").innerHTML = `#channels > .channel:not([data-lowercase-name*="${search}"]), #channels > .hbbtv-container > .channel:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-enabler + .hbbtv-channels > .channel[data-lowercase-name*="${search}"])), #channels > .hbbtv-container > .channel:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-enabler + .hbbtv-channels > .channel[data-lowercase-name*="${search}"])) + .hbbtv-enabler, .hbbtv-mosaic:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-channels > .channel[data-lowercase-name*="${search}"])), .channel:not([data-lowercase-name*="${search}"]) + .hbbtv-enabler + .hbbtv-channels .channel:not([data-lowercase-name*="${search}"]), .hbbtv-mosaic:not([data-lowercase-name*="${search}"]) + .hbbtv-channels .channel:not([data-lowercase-name*="${search}"]), .channel:not([data-lowercase-name*="${search}"]) + .hbbtv-enabler + .hbbtv-channels .category, .hbbtv-mosaic:not([data-lowercase-name*="${search}"]) + .hbbtv-channels .category {
+    display: none;
+}
+.hbbtv-channels:has([data-lowercase-name*="${search}"]) {
+    height: var(--scroll-height);
+    border-bottom: 2px #373737 solid;
+}
+.hbbtv-container:has(.hbbtv-channels [data-lowercase-name*="${search}"]) > .channel + .hbbtv-enabler {
+    height: 2.5rem;
+    padding: 0.5rem 0 0.5rem 1rem;
+    border-bottom: 2px #373737 solid;
+}
+.hbbtv-container:has(.hbbtv-channels [data-lowercase-name*="${search}"]) .hbbtv-enabler-arrow {
+    transform: rotate(90deg);
+}
+#channels-column .source-header {
+    transform: translateY(calc(-2.25rem - 1px));
+    user-select: none;
+    pointer-events: none;
+}`;
+    }
+}
+
+document.querySelector("#search-input input").addEventListener("input", e => {
     const search = new DOMParser().parseFromString(e.target.value.toLowerCase(), "text/html").documentElement.innerText.trim();
     const now = Date.now();
     const elapsed = now - searchUpdateLastCallTime;
@@ -2351,41 +2455,40 @@ document.querySelector("input").addEventListener("input", e => {
 
     searchUpdateTimeoutID = setTimeout(() => {
         if (search) {
-            const elements = zappr.channels.filter(channel => (channel.name && channel.name.toLowerCase().includes(search)) || (channel.hbbtv && channel.hbbtv.filter(subchannel => subchannel.name && subchannel.name.toLowerCase().includes(search)).length > 0) || channel.categorySeparator);
-            document.querySelector("#search-results").style.display = "block";
-            document.querySelector("#channels").style.display = "none";
-            document.querySelector("#search-results").innerHTML = elements.map(el => generateChannelHTML(el)).join("");
-            document.querySelectorAll("#search-results .channel, #search-results .hbbtv-enabler").forEach(el => el.addEventListener("click", channelOnClick));
-            updateCurrentlyPlayingEPG();
-            document.querySelector("#search").innerHTML = `#channels > .channel:not([data-lowercase-name*="${search}"]), #channels > .hbbtv-container > .channel:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-enabler + .hbbtv-channels > .channel[data-lowercase-name*="${search}"])), #channels > .hbbtv-container > .channel:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-enabler + .hbbtv-channels > .channel[data-lowercase-name*="${search}"])) + .hbbtv-enabler, .hbbtv-mosaic:not([data-lowercase-name*="${search}"], :has(+ .hbbtv-channels > .channel[data-lowercase-name*="${search}"])), .channel:not([data-lowercase-name*="${search}"]) + .hbbtv-enabler + .hbbtv-channels .channel:not([data-lowercase-name*="${search}"]), .hbbtv-mosaic:not([data-lowercase-name*="${search}"]) + .hbbtv-channels .channel:not([data-lowercase-name*="${search}"]), .channel:not([data-lowercase-name*="${search}"]) + .hbbtv-enabler + .hbbtv-channels .category, .hbbtv-mosaic:not([data-lowercase-name*="${search}"]) + .hbbtv-channels .category {
-        display: none;
-    }
-    .hbbtv-channels:has([data-lowercase-name*="${search}"]) {
-        height: var(--scroll-height);
-        border-bottom: 2px #373737 solid;
-    }
-    .hbbtv-container:has(.hbbtv-channels [data-lowercase-name*="${search}"]) > .channel + .hbbtv-enabler {
-        height: 2.5rem;
-        padding: 0.5rem 0 0.5rem 1rem;
-        border-bottom: 2px #373737 solid;
-    }
-    .hbbtv-container:has(.hbbtv-channels [data-lowercase-name*="${search}"]) .hbbtv-enabler-arrow {
-        transform: rotate(90deg);
-    }
-    #channels-column .source-header {
-        transform: translateY(calc(-2.25rem - 1px));
-        user-select: none;
-        pointer-events: none;
-    }`;
+            filterChannels(channel => (channel.name && channel.name.toLowerCase().includes(search)) || (channel.hbbtv && channel.hbbtv.filter(subchannel => subchannel.name && subchannel.name.toLowerCase().includes(search)).length > 0) || channel.categorySeparator);
         } else {
-            document.querySelector("#search-results").style.display = "none";
-            document.querySelector("#channels").style.display = "block";
-            document.querySelector("#search").innerHTML = "";
-            document.querySelector("#search-results").innerHTML = "";
+            filterChannels(false);
         };
         searchUpdateLastCallTime = Date.now();
     }, wait);
 });
+
+
+// TODO it would be nice to have a better UX for exporting, rather than
+// having to discover right click and copy url.
+const favExport = document.querySelector("#fav-export");
+window.zappr.favourites.onchange = (url) => favExport.href = url;
+favExport.href = window.zappr.favourites.toURL();
+const favExportIn = document.querySelector("#fav-export input");
+favExportIn.checked = false;
+favExportIn.addEventListener("click", (e) => {
+    if ( e.target.checked ) {
+        filterChannels(channel => {
+            if ( window.zappr.favourites.has(`${channel.lcn}`) ) {
+                return true;
+            }
+            const subs = channel.hbbtv || [];
+            for ( let sub of subs ) {
+                if (  window.zappr.favourites.has(`${channel.lcn}.${sub.sublcn}`) )
+                    return true;
+            }
+            return false;
+        });
+    } else {
+        filterChannels(false);
+    }
+});
+
 document.querySelector("#search-icon").addEventListener("click", () => {
     if (!document.querySelector("#channels-column").classList.contains("search-visible")) document.querySelector("input").focus();
     document.querySelector("#channels-column").classList.toggle("search-visible");
@@ -2490,8 +2593,12 @@ setInterval(async () => {
 }, 3600000);
 
 document.querySelector("#epg-exit").addEventListener("click", () => {
-    document.querySelector("#channels-column").classList.remove("epg-visible");
-    document.querySelector("#channels-column").classList.remove("epg-expanded");
+    // Close EPG
+    if ( window.history.state === "epg" ) {
+        window.history.back();
+    } else {
+        closeEPG();
+    }
 });
 document.querySelector("#epg-resize").addEventListener("click", () => document.querySelector("#channels-column").classList.toggle("epg-expanded"));
 document.querySelector("#epg-next-day").addEventListener("click", () => {
