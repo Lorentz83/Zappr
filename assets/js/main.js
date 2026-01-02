@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import mediumZoom from "medium-zoom";
 import { merge } from "lodash";
 import "videojs-contrib-eme";
-import VirtualList from "./virtualizedlist";
+import { DeVirtualizedList } from "./virtualizedlist";
 import locales from "./locales";
 import countries from "./countries";
 import FavSet from "./favset"
@@ -292,16 +292,22 @@ const waitForSelector = (selector) => {
 };
 
 if (ipLocation != selectedCountry) {
-    createModal({
-        title: locale["warning"],
-        text: locale["geoblockMessage"],
-        buttons: language === "it" ? [{
-            type: "primary",
-            href: "https://mullvad.net/it",
-            text: `Acquista Mullvad VPN, la nostra VPN consigliata <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#fff" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h14v-7h2v7q0 .825-.587 1.413T19 21zm4.7-5.3l-1.4-1.4L17.6 5H14V3h7v7h-2V6.4z"></path></svg>`,
-            newtab: true
-        }] : []
-    });
+    if ( localStorage.getItem("vpn_warn") != "no" ) {
+        createModal({
+            title: locale["warning"],
+            text: locale["geoblockMessage"],
+            buttons: language === "it" ? [{
+                type: "primary",
+                href: "https://mullvad.net/it",
+                text: `Acquista Mullvad VPN, la nostra VPN consigliata <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#fff" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h14v-7h2v7q0 .825-.587 1.413T19 21zm4.7-5.3l-1.4-1.4L17.6 5H14V3h7v7h-2V6.4z"></path></svg>`,
+                newtab: true
+            },{
+                href: `javascript:localStorage.setItem('vpn_warn', 'no');window.zappr.closeModal();`,
+                type: "primary",
+                text: `Non mostrare più`,
+            }] : []
+        });
+    }
 };
 if (isFirstVisit) {
     createModal({
@@ -1439,7 +1445,7 @@ const sourceHeaderOnScroll = () => {
 let epgUpdateLastCallTime = 0;
 let epgUpdateTimeoutID = null;
 
-const virtualList = new VirtualList({
+const virtualList = new DeVirtualizedList({
     container: document.querySelector("#channels"),
     items: zappr.channels,
     initialItemHeights: channelElementHeights,

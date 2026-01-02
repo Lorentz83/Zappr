@@ -167,3 +167,56 @@ export default class VirtualizedList {
         this.render();
     }
 }
+
+
+export class DeVirtualizedList {
+    constructor({ container, items, initialItemHeights, renderFunction, onScroll = null, onClick = null, manualClassName }) {
+        this.container = container;
+        this.items = items;
+        this.renderFunction = renderFunction;
+        this.itemHeights = initialItemHeights;
+        this.itemOffsets = [];
+        this.visibleItems = {};
+        this.startIndex = null;
+        this.endIndex = null;
+        this.onScroll = onScroll;
+        this.onClick = onClick;
+        this.bufferSize = 10;
+        this.manualClassName = manualClassName;
+
+        this._setup();
+    }
+
+    initializeOffsets() {}
+
+    render() {}
+
+    _setup() {
+        this.container.style.position = "relative";
+        this.container.style.overflowY = "auto";
+
+        if ( this.onScroll ) {
+            this.container.addEventListener("scroll", () => this.onScroll(this.container.scrollTop));
+        }
+
+        this.scrollNumOffset = this.container.children.length;
+
+        this.items.forEach( (el, idx) => {
+            let itemDiv = document.createElement("div");
+            const content = this.renderFunction(el, idx);
+            itemDiv.innerHTML = content;
+            itemDiv = itemDiv.children[0];
+            if (this.onClick) {
+                itemDiv.addEventListener("click", e => this.onClick(e));
+            };
+            this.container.appendChild(itemDiv);
+        });
+    }
+
+    scrollToIndex(index, start = false, smooth = false) {
+       // TODO use start parameter.
+       this.container.children[this.scrollNumOffset + index].scrollIntoView({
+            behavior: smooth ? "smooth" : "instant"
+        })
+    }
+}
