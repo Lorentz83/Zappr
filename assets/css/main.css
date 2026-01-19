@@ -5,6 +5,10 @@
     }
 }
 
+#tv.vjs-user-inactive {
+  cursor: none;
+}
+
 html {
     font-size: clamp(11pt, 1.15vw, 25px);
     --program-progress-height: 24px;
