@@ -164,6 +164,13 @@ const player = videojs("tv", {
         skipButtons: {
             backward: 5,
             forward: 5
+        },
+        progressControl: {
+            seekBar: {
+                playProgressBar: {
+                    timeTooltip: true
+                }
+            }
         }
     },
     errorDisplay: false,
@@ -177,6 +184,10 @@ const player = videojs("tv", {
         qualityMenu: {},
         reloadSourceOnError: {},
         eme: {}
+    },
+    userActions: {
+        click: !window.matchMedia("(max-width: 100vh)").matches,
+        doubleClick: !window.matchMedia("(max-width: 100vh)").matches
     }
 });
 
@@ -184,14 +195,69 @@ window.zappr.player = player;
 window.zappr.videojs = videojs;
 
 player.on("fullscreenchange", () => screen.orientation.lock("landscape-primary").catch(() => {}));
-player.on("play", () => {
-    document.querySelector("#hide-player").media = "not all";
-});
 player.on("loadeddata", () => {
     if (player.liveTracker.isLive() && !player.scrubbing() && !player.seeking()) {
         player.liveTracker.seekToLiveEdge();
     };
 });
+
+if (window.matchMedia("(max-width: 100vh)").matches) {
+    let skippingLastCallTime = 0;
+    let skippingClickCount = 0;
+    let skippingClickTimer = null;
+    let skippingInactivityTimer = null;
+    let skippingWasDoubleClicking = false;
+
+    player.on("touchstart", e => {
+        skippingClickCount++;
+
+        if (skippingClickTimer) clearTimeout(skippingClickTimer);
+        if (skippingInactivityTimer) clearTimeout(skippingInactivityTimer);
+
+        if (skippingClickCount === 2) {
+            const now = Date.now();
+
+            if (now - skippingLastCallTime >= 300) {
+                skippingLastCallTime = now;
+                skippingWasDoubleClicking = true;
+                console.log("Double click registered");
+                if (e.touches[0].clientX <= window.innerWidth / 3) {
+                    document.querySelector(".video-js").dataset.skippingDeactivating = "";
+                    document.querySelector(".video-js").dataset.skipping = "backwards";
+                    zappr.player.currentTime(zappr.player.currentTime() - 10);
+                } else if (e.touches[0].clientX >= (window.innerWidth / 3) * 2) {
+                    document.querySelector(".video-js").dataset.skippingDeactivating = "";
+                    document.querySelector(".video-js").dataset.skipping = "forwards";
+                    zappr.player.currentTime(zappr.player.currentTime() + 10);
+                };
+            };
+
+            skippingClickCount = 0;
+
+            skippingInactivityTimer = setTimeout(() => {
+                if (skippingWasDoubleClicking) {
+                    document.querySelector(".video-js").dataset.skippingDeactivating = "true";
+                    setTimeout(() => document.querySelector(".video-js").dataset.skipping = "", 1000);
+                    skippingWasDoubleClicking = false;
+                };
+            }, 1500);
+
+        } else {
+            skippingClickTimer = setTimeout(() => {
+                skippingClickCount = 0;
+                
+                if (skippingWasDoubleClicking) {
+                    document.querySelector(".video-js").dataset.skippingDeactivating = "true";
+                    setTimeout(() => document.querySelector(".video-js").dataset.skipping = "", 1000);
+                    skippingWasDoubleClicking = false;
+                };
+            }, 300);
+        }
+    });
+};
+
+// grazie Vite
+document.head.appendChild(document.querySelector("#new-player-fix"));
 
 const overlays = document.querySelector("#overlays"),
       nightAdultChannelsStyle = document.querySelector("#night-adult-channels");
@@ -729,6 +795,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
 };
 
 const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, radio = false, http = false, license = false, licenseDetails = null, feed = false, fallbackType = null, fallbackURL = null, fallbackAPI = false, timeshift = 0 }) => {
+    document.querySelector("#hide-player").media = "not all";
     if (url.startsWith("zappr://")) {
         const parameter = url.split("/")[3];
         switch(url.split("/")[2]) {
@@ -1057,11 +1124,19 @@ const returnErrorMessage = (errorCode) => {
     })[errorCode];
 };
 
+const nativeHLSTest = document.createElement("video");
+const supportsNativeHLS = nativeHLSTest.canPlayType("application/vnd.apple.mpegurl") != "";
+
 const generateChannelHTML = (channel) => {
     const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isGeoblocked = ipLocation != selectedCountry;
 
     const channelIndex = zappr.channels.indexOf(channel);
+    if (channel.nativeHLS && supportsNativeHLS) {
+        channel.type = "iframe";
+        channel.url = `https://href.li/?${channel.nativeHLS.url}`;
+        if (navigator.userAgentData && navigator.userAgentData.brands.some(data => data.brand === "Chromium") && channel.nativeHLS.quality) channel.cssfix = `native-hls-${channel.nativeHLS.quality}-iframe`;
+    };
     return `
         ${channel.categorySeparator === undefined
             ? `${channel.hbbtv ? `<div class="hbbtv-container">` : ""}
@@ -1595,7 +1670,7 @@ const scheduleProgram = (program) => {
         
         const endTimeoutId = setTimeout(() => {
             loadChannel({
-                type: "hls",
+                type: window.zappr.channels.filter(el => el.lcn === 103)[0].type,
                 url: window.zappr.channels.filter(el => el.lcn === 103)[0].url,
                 name: "Rai 3",
                 lcn: 103,
@@ -1617,7 +1692,7 @@ const scheduleProgram = (program) => {
         return;
     } else if (!state.playingRegional) {
         loadChannel({
-            type: "hls",
+            type: window.zappr.channels.filter(el => el.lcn === 103)[0].type,
             url: window.zappr.channels.filter(el => el.lcn === 103)[0].url,
             name: "Rai 3",
             lcn: 103,
@@ -1647,7 +1722,7 @@ const scheduleProgram = (program) => {
         
         const endTimeoutId = setTimeout(() => {
             loadStream({
-                type: "hls",
+                type: window.zappr.channels.filter(el => el.lcn === 103)[0].type,
                 url: window.zappr.channels.filter(el => el.lcn === 103)[0].url,
                 name: "Rai 3",
                 lcn: 103,
