@@ -1711,3 +1711,12 @@ a#reopen-window svg {
 *, ::after, ::before {
     box-sizing: inherit;
 }
+
+.channel.watching {
+    background-color: #292939;
+}
+
+/* complex selector to override */
+div.channel.watching[data-name]:hover {
+    background-color: #303040 !important
+}
