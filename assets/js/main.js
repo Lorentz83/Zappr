@@ -2571,7 +2571,7 @@ favExportIn.addEventListener("click", (e) => {
 });
 
 document.querySelector("#search-icon").addEventListener("click", () => {
-    if (!document.querySelector("#channels-column").classList.contains("search-visible")) document.querySelector("input").focus();
+    if (!document.querySelector("#channels-column").classList.contains("search-visible")) document.querySelector("#search-input input").focus();
     document.querySelector("#channels-column").classList.toggle("search-visible");
 });
 
