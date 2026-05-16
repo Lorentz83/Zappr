@@ -37,7 +37,14 @@ html {
 #block-message {
     display: flex;
     flex-direction: column;
-    padding: 1rem;
+    padding: 3rem;
+    height: 100%;
+    max-width: 50rem;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    box-sizing: border-box;
+    margin: auto;
 }
 #block-message h2 {
     margin: 0;
@@ -45,6 +52,7 @@ html {
 }
 #block-message .button {
     margin: 2rem 0;
+    margin-bottom: 0;
     line-height: 1.2;
     cursor: pointer;
 }
@@ -1412,8 +1420,6 @@ a.tooltip-link {
     background: #000;
     pointer-events: all;
     user-select: none;
-}
-#overlays.pluto-channel {
     overflow: hidden;
 }
 #overlays.hbbtv-app #fullscreen-button-container, #overlays.pluto-channel #fullscreen-button-container, #overlays.radio-overlay #fullscreen-button-container {

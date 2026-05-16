@@ -269,8 +269,10 @@ window.zappr.closeModal = () => {
     };
 };
 
-const createErrorModal = async ({ title, error, info, params }) => {
+const createErrorModal = async ({ title, error, info, params, type }) => {
     let urlParams = new URLSearchParams(params).toString();
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
     const modalHTML = `<div class="modal">
         <div class="modal-content">
             <div class="modal-title">
@@ -285,8 +287,12 @@ const createErrorModal = async ({ title, error, info, params }) => {
             </div>
             <div class="code" onclick="copyInfo()">${info}</div>    
             ` : ""}
-            <p id="report-error">${locale["reportError"]}</p>
-            <div class="modal-buttons">
+            <p id="report-error">${type === "dash" && isiOS
+                ? locale["unreportableErrorDASHiOS"]
+                : params.lcn >= 1000
+                    ? locale["unreportableErrorFAST"]
+                    : locale["reportError"]}</p>
+            ${!(type === "dash" && isiOS) && params.lcn < 1000 ? `<div class="modal-buttons">
                 <a class="button primary" href="https://github.com/ZapprTV/channels/issues/new?${urlParams}" target="_blank">
                     ${locale["reportViaGithub"]}
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#fff" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h14v-7h2v7q0 .825-.587 1.413T19 21zm4.7-5.3l-1.4-1.4L17.6 5H14V3h7v7h-2V6.4z"></path></svg>
@@ -301,7 +307,7 @@ ${locale["errorEmailFooter"]}
                     ${locale["reportViaEmail"]}
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#000" d="M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h14v-7h2v7q0 .825-.587 1.413T19 21zm4.7-5.3l-1.4-1.4L17.6 5H14V3h7v7h-2V6.4z"></path></svg>
                 </a>
-            </div>
+            </div>` : ""}
         </div>
     </div>`;
 
@@ -441,7 +447,7 @@ if (new URLSearchParams(location.search).get("androidtv") != null) {
     textNodesUnder(document.querySelector("#region")).filter(el => el.textContent === ",").forEach(el => el.remove());
 };
 
-const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, radio = false, http = false, feed = false, drm = null, fallbackType = null, fallbackURL = null, fallbackAPI = false, timeshift = 0 }) => {
+const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, radio = false, http = false, feed = false, drm = null, fallbackType = null, fallbackURL = null, fallbackAPI = false, fallbackCSSFix = null, timeshift = 0 }) => {
     if (api) {
         url = `${window["zappr"].config.backend.host[api]}/api?${url}`;
     };
@@ -498,6 +504,15 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
             player.off("loadeddata");
         });
     };
+
+    // per disattivare di default i sottotitoli
+    // https://github.com/videojs/video.js/issues/8662#issuecomment-2188549956
+    player.on("loadedmetadata", function () {
+        for (let i = 0; i < player.tech_.textTracks_.length; i++) {
+            player.tech_.textTracks_[i].mode = "disabled";
+        };
+    });
+
     player.off("error");
     player.on("error", async () => {
         window.zappr.closeModal();
@@ -531,6 +546,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
                 createErrorModal({
                     title: locale["channelError"],
                     error: `${locale["cantLoad"]} <b>${name}</b> <i>(${url})</i> ${locale["formatServerError"]}${httpError ? `: <b>${httpError}</b>` : ` ${locale["unknownSuffix"]}.`}`,
+                    type: type,
                     params: {
                         template: `error-${language}.yml`,
                         title: `${lcn} - ${name}: ${locale["formatServerErrorTitle"]} (${httpError ? httpError : locale["unknownSuffix"]})`,
@@ -546,6 +562,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
                     title: locale["channelError"],
                     error: `${locale["cantLoad"]} <b>${name}</b> <i>(${url})</i> ${locale["decodingError"]}.`,
                     info: videojsLog,
+                    type: type,
                     params: {
                         template: `error-${language}.yml`,
                         title: `${lcn} - ${name}: ${locale["decodingErrorTitle"]}`,
@@ -564,6 +581,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
                 createErrorModal({
                     title: locale["channelError"],
                     error: `${locale["cantLoad"]} <b>${name}</b> <i>(${url})</i> ${locale["serverError"]}${httpError ? `: <b>${httpError}</b>` : ` ${locale["unknownSuffix"]}`}.`,
+                    type: type,
                     params: {
                         template: `error-${language}.yml`,
                         title: `${lcn} - ${name}: ${locale["serverErrorTitle"]} (${httpError ? httpError : locale["unknownSuffix"]})`,
@@ -592,6 +610,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
                     title: locale["channelError"],
                     error: `${locale["cantLoad"]} <b>${name}</b> <i>(${url})</i> ${locale["unknownError"]}.`,
                     info: `${httpStatus ? `HTTP: ${httpStatus} - ` : ""}Video.js (${errors[player.error().code]}): ${videojsLog}`,
+                    type: type,
                     params: {
                         template: `error-${language}.yml`,
                         title: `${lcn} - ${name}: ${locale["unknownErrorTitle"]}`,
@@ -610,6 +629,12 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
                 logo: logo,
                 api: fallbackAPI
             });
+            if (fallbackCSSFix != undefined) {
+                if (document.querySelector(`style.cssfix[media=""]`) != null) {
+                    document.querySelector(`style.cssfix[media=""]`).media = "not all";
+                };
+                document.querySelector(`style.cssfix#${fallbackCSSFix}-fix`).media = "";
+            };
         };
     });
 
@@ -794,7 +819,7 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
     };
 };
 
-const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, radio = false, http = false, license = false, licenseDetails = null, feed = false, fallbackType = null, fallbackURL = null, fallbackAPI = false, timeshift = 0 }) => {
+const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, radio = false, http = false, license = false, licenseDetails = null, feed = false, fallbackType = null, fallbackURL = null, fallbackAPI = false, fallbackCSSFix = null, timeshift = 0 }) => {
     document.querySelector("#hide-player").media = "not all";
     if (url.startsWith("zappr://")) {
         const parameter = url.split("/")[3];
@@ -972,6 +997,50 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
                 });
                 document.head.appendChild(acdSolutionsScript);
                 break;
+
+            case "wbd":
+                const authToken = await fetch("https://public.aurora.enhanced.live/token?realm=it")
+                    .then(response => response.json())
+                    .then(json => json.data.attributes.token);
+
+                const hlsURL = await fetch("https://public.aurora.enhanced.live/playback/v3/channelPlaybackInfo", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        deviceInfo: {
+                            adBlocker: false,
+                            drmSupported: false,
+                            hdrCapabilities: ["SDR"],
+                            hwDecodingCapabilities: [],
+                            soundCapabilities: ["STEREO"]
+                        },
+                        wisteriaProperties: {
+                            device: {
+                                browser: {
+                                    name: "chrome",
+                                    version: "38"
+                                },
+                                type: "mobile"
+                            },
+                            platform: "mobile"
+                        },
+                        channelId: parameter
+                    })
+                })
+                    .then(response => response.json())
+                    .then(json => json.data.attributes.streaming.filter(stream => stream.type === "hls")[0].url);
+
+                loadStream({
+                    type: type,
+                    url: hlsURL,
+                    name: name,
+                    lcn: lcn,
+                    logo: logo
+                });
+
         };
     } else if (license) {
         switch(license) {
@@ -996,19 +1065,18 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
                     if (window.zappr.raiAkamai != undefined && window.zappr.raiAkamai.expiration - Math.floor(Date.now() / 1000) > 10) {
                         auth = window.zappr.raiAkamai.auth;
                     } else {
-                        await fetch(`${window["zappr"].config.backend.host["alwaysdata"]}/rai-akamai`, { method: "POST" })
-                            .then(response => response.text())
-                            .then(search => auth = search);
+                        const authData = await fetch(`${window["zappr"].config.backend.host["alwaysdata"]}/rai-akamai`, { method: "POST" })
+                            .then(response => response.json());
                         
                         window.zappr.raiAkamai = {
-                            auth: auth,
-                            expiration: parseInt(new URLSearchParams(auth).get("hdnea").split("~").filter(el => el.startsWith("exp"))[0].split("=")[1])
+                            ...authData,
+                            expiration: parseInt(new URLSearchParams(authData.auth).get("hdnea").split("~").filter(el => el.startsWith("exp"))[0].split("=")[1])
                         };
                     };
     
                     loadStream({
                         type: type,
-                        url: `${url}${auth}`,
+                        url: `${url}${zappr.raiAkamai.auth}`,
                         name: name,
                         lcn: lcn,
                         logo: logo,
@@ -1031,8 +1099,12 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
             case "clearkey":
                 let params = { url };
                 if (licenseDetails) {
-                    params.kid = licenseDetails.split(":")[0];
-                    params.key = licenseDetails.split(":")[1];
+                    if (decodeURIComponent(licenseDetails).startsWith(`"`)) {
+                        params.kid = decodeURIComponent(licenseDetails).replaceAll(`"`, "").split(":")[0];
+                        params.key = decodeURIComponent(licenseDetails).replaceAll(`"`, "").split(":")[1];
+                    } else {
+                        params.keys = licenseDetails;
+                    };
                 };
                 loadStream({
                     type: "iframe",
@@ -1046,7 +1118,7 @@ const loadChannel = async ({ type, url, api = false, name, lcn, logo, fullLogo, 
                 });
         };
     } else {
-        await loadStream({ type: type, url: url, api: api, name: name, lcn: lcn, logo: logo, fullLogo: fullLogo, radio: radio, http: http, feed: feed, fallbackType: fallbackType, fallbackURL: fallbackURL, fallbackAPI: fallbackAPI, timeshift: timeshift })
+        await loadStream({ type: type, url: url, api: api, name: name, lcn: lcn, logo: logo, fullLogo: fullLogo, radio: radio, http: http, feed: feed, fallbackType: fallbackType, fallbackURL: fallbackURL, fallbackAPI: fallbackAPI, fallbackCSSFix: fallbackCSSFix, timeshift: timeshift })
     };
 };
 
@@ -1140,7 +1212,7 @@ const generateChannelHTML = (channel) => {
     return `
         ${channel.categorySeparator === undefined
             ? `${channel.hbbtv ? `<div class="hbbtv-container">` : ""}
-                <div class="${channel.hbbtvapp ? "hbbtv-app" : ""}${channel.url && channel.url.includes("pluto.tv") ? "pluto-channel" : ""} ${channel.hbbtvmosaic ? "hbbtv-enabler hbbtv-mosaic": "channel"} ${channel.adult === true ? "adult" : channel.adult === "night" ? "adult at-night" : ""}" data-name="${channel.name}" data-lowercase-name="${channel.name.toLowerCase()}" data-logo="${getChannelLogoURL(channel.logo)}" data-full-logo="${getChannelLogoURL(channel.logo, false)}" ${channel.radio ? `data-radio="${channel.radio}"` : ""} ${channel.type != undefined && (!isGeoblocked || !channel.geoblock) ? `data-type="${channel.type}"` : ""} ${channel.type != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-type="${channel.geoblock.type}"` : ""} ${channel.url != undefined && (!isGeoblocked || !channel.geoblock) ? `data-url="${channel.url}"` : ""} ${channel.url != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-url="${channel.geoblock.url}"` : ""} data-lcn="${channel.lcn}" ${channel.seek != undefined ? `data-seek="${channel.seek}"` : ""} ${channel.disabled ? `disabled data-disabled="${channel.disabled}" title="${returnErrorMessage(channel.disabled)}"` : ""} ${!channel.disabled && channel.http && isiOS ? `disabled data-disabled="http-ios"` : ""} ${!channel.disabled && channel.geoblock && isGeoblocked && typeof channel.geoblock === "boolean" ? `disabled data-disabled="geoblock" title="${returnErrorMessage('geoblock')}"` : ""} ${channel.api && (!isGeoblocked || !channel.geoblock) ? `data-api="${channel.api}"` : ""} ${typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked && channel.geoblock.api != undefined ? `data-api="${channel.geoblock.api}"` : ""} ${channel.cssfix ? `data-cssfix="${channel.cssfix}"` : ""} ${channel.http ? `data-http="true"` : ""} ${channel.license != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license="${channel.license}"` : ""} ${channel.license === undefined && typeof channel.geoblock === "object" && channel.geoblock.license && isGeoblocked ? `data-license="${channel.geoblock.license}"` : ""} ${channel.licensedetails != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license-details="${channel.licensedetails}"` : ""} ${channel.licensedetails === undefined && typeof channel.geoblock === "object" && channel.geoblock.licensedetails && isGeoblocked ? `data-license-details="${channel.geoblock.licensedetails}"` : ""} ${channel.feed ? `data-feed="${channel.feed}"` : ""} ${channel.fallback ? `data-fallback-type="${channel.fallback.type}" data-fallback-url="${channel.fallback.url}"` : ""} ${channel.fallback && channel.fallback.api ? `data-fallback-api="${channel.fallback.api}"` : ""} ${channel.epg ? `data-epg-source="${channel.epg.source}" data-epg-id="${channel.epg.id}"` : ""} ${channel.manualRestart ? `data-manual-restart-source="${channel.manualRestart.source}" data-manual-restart-id="${channel.manualRestart.id}"` : ""} ${channel.timeshift ? `data-timeshift="${channel.timeshift}"` : ""} ${categoryIndexes.findLastIndex(category => channelIndex > category) > 0 ? `data-category="${zappr.channels[categoryIndexes[categoryIndexes.findLastIndex(category => channelIndex > category)]].categorySeparator}"` : ""}>
+                <div class="${channel.hbbtvapp ? "hbbtv-app" : ""}${channel.url && channel.url.includes("pluto.tv") ? "pluto-channel" : ""} ${channel.hbbtvmosaic ? "hbbtv-enabler hbbtv-mosaic": "channel"} ${channel.adult === true ? "adult" : channel.adult === "night" ? "adult at-night" : ""}" data-name="${channel.name}" data-lowercase-name="${channel.name.toLowerCase()}" data-logo="${getChannelLogoURL(channel.logo)}" data-full-logo="${getChannelLogoURL(channel.logo, false)}" ${channel.radio ? `data-radio="${channel.radio}"` : ""} ${channel.type != undefined && (!isGeoblocked || !channel.geoblock) ? `data-type="${channel.type}"` : ""} ${channel.type != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-type="${channel.geoblock.type}"` : ""} ${channel.url != undefined && (!isGeoblocked || !channel.geoblock) ? `data-url="${channel.url}"` : ""} ${channel.url != undefined && typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked ? `data-url="${channel.geoblock.url}"` : ""} data-lcn="${channel.lcn}" ${channel.seek != undefined ? `data-seek="${channel.seek}"` : ""} ${channel.disabled ? `disabled data-disabled="${channel.disabled}" title="${returnErrorMessage(channel.disabled)}"` : ""} ${!channel.disabled && channel.http && isiOS ? `disabled data-disabled="http-ios"` : ""} ${!channel.disabled && channel.geoblock && isGeoblocked && typeof channel.geoblock === "boolean" ? `disabled data-disabled="geoblock" title="${returnErrorMessage('geoblock')}"` : ""} ${channel.api && (!isGeoblocked || !channel.geoblock) ? `data-api="${channel.api}"` : ""} ${typeof channel.geoblock === "object" && channel.geoblock && isGeoblocked && channel.geoblock.api != undefined ? `data-api="${channel.geoblock.api}"` : ""} ${channel.cssfix != undefined && (!isGeoblocked || !channel.geoblock) ? `data-cssfix="${channel.cssfix}"` : ""} ${channel.cssfix === undefined && typeof channel.geoblock === "object" && channel.geoblock.cssfix && isGeoblocked ? `data-cssfix="${channel.geoblock.cssfix}"` : ""} ${channel.http ? `data-http="true"` : ""} ${channel.license != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license="${channel.license}"` : ""} ${channel.license === undefined && typeof channel.geoblock === "object" && channel.geoblock.license && isGeoblocked ? `data-license="${channel.geoblock.license}"` : ""} ${channel.licensedetails != undefined && (!isGeoblocked || !channel.geoblock) ? `data-license-details="${encodeURI(JSON.stringify(channel.licensedetails))}"` : ""} ${channel.licensedetails === undefined && typeof channel.geoblock === "object" && channel.geoblock.licensedetails && isGeoblocked ? `data-license-details="${encodeURI(JSON.stringify(channel.geoblock.licensedetails))}"` : ""} ${channel.feed ? `data-feed="${channel.feed}"` : ""} ${channel.fallback ? `data-fallback-type="${channel.fallback.type}" data-fallback-url="${channel.fallback.url}"` : ""} ${channel.fallback && channel.fallback.api ? `data-fallback-api="${channel.fallback.api}"` : ""} ${channel.fallback && channel.fallback.cssfix ? `data-fallback-cssfix="${channel.fallback.cssfix}"` : ""} ${channel.epg ? `data-epg-source="${channel.epg.source}" data-epg-id="${channel.epg.id}"` : ""} ${channel.manualRestart ? `data-manual-restart-source="${channel.manualRestart.source}" data-manual-restart-id="${channel.manualRestart.id}"` : ""} ${channel.timeshift ? `data-timeshift="${channel.timeshift}"` : ""} ${categoryIndexes.findLastIndex(category => channelIndex > category) > 0 ? `data-category="${zappr.channels[categoryIndexes[categoryIndexes.findLastIndex(category => channelIndex > category)]].categorySeparator}"` : ""}>
                     <div class="channel-info">
                         <input type="checkbox" class="ch-fav-btn" data-ch="${channel.lcn}" ${window.zappr.favourites.has(''+channel.lcn) ? "checked" : ""}>
                         <div class="lcn">${channel.lcn}</div>
@@ -1400,6 +1472,7 @@ const channelOnClick = async (e) => {
             fallbackType: el.dataset.fallbackType,
             fallbackURL: el.dataset.fallbackUrl,
             fallbackAPI: el.dataset.fallbackApi,
+            fallbackCSSFix: el.dataset.fallbackCssfix,
             timeshift: el.dataset.timeshift
         });
     } else if ((["channel-program", "channel-program-progress", "channel-program-progress-background", "channel-program-times"].includes(e.target.className) || e.target.nodeName === "B")) {
@@ -1863,7 +1936,7 @@ let manualRestart = {
                         .then(response => response.json())
                         .then(json => json.data.attributes.token);
 
-                    const dashURL = await fetch("https://public.aurora.enhanced.live/playback/v3/channelPlaybackInfo", {
+                    const hlsURL = await fetch("https://public.aurora.enhanced.live/playback/v3/channelPlaybackInfo", {
                         method: "POST",
                         headers: {
                             "Authorization": `Bearer ${authToken}`,
@@ -1883,9 +1956,9 @@ let manualRestart = {
                                         name: "chrome",
                                         version: "38"
                                     },
-                                    type: "hbbtv"
+                                    type: "desktop"
                                 },
-                                platform: "hbbtv"
+                                platform: "desktop"
                             },
                             channelId: data.restartID
                         })
@@ -1893,11 +1966,11 @@ let manualRestart = {
                         .then(response => response.json())
                         .then(json => json.data.attributes.streaming[0].url);
 
-                    const canRestart = await fetch(`${dashURL}&aws.manifestsettings=start:${playoutStartTime}`)
+                    const canRestart = await fetch(`${hlsURL}&aws.manifestsettings=start:${playoutStartTime}`)
                         .then(response => response.ok);
 
                     if (canRestart) {
-                        await loadStream({ type: "dash", url: `${dashURL}&aws.manifestsettings=start:${playoutStartTime}`, name: `${channel.dataset.name} (restart)`, lcn: channel.dataset.lcn, logo: channel.dataset.logo });
+                        await loadStream({ type: "hls", url: `${hlsURL}&aws.manifestsettings=start:${playoutStartTime}`, name: `${channel.dataset.name} (restart)`, lcn: channel.dataset.lcn, logo: channel.dataset.logo });
                         seekToStart = () => {
                             if (player.liveTracker.isLive()) player.currentTime(data.buffer / 1000);
                             player.off("loadeddata", seekToStart);
@@ -2761,12 +2834,7 @@ document.querySelector("#epg-previous-day").addEventListener("click", () => {
     };
 });
 
-if (window.self !== window.top && document.referrer && new URL(document.referrer).hostname.endsWith("kritere.com")) {
-    document.querySelector("#loading").remove();
-    document.querySelector(".columns").outerHTML = `<div id="block-message">
-        <h2>Questo sito sta incorporando Zappr, un sito gratuito per guardare la TV italiana online, coprendone il nome e traendo profitto dalle pubblicità su questa pagina.</h2>
-        <div class="button primary">Clicca qui per passare alla versione vera di Zappr, senza pubblicità e a schermo intero.</div>
-        <span>(amministratori del sito, potete continuare a incorporare Zappr solo se rimuovete la barra che ne copre il nome e se rimuovete le pubblicità da questa pagina)</span>
-    </div>`;
+if (window.self !== window.top && document.referrer && (new URL(document.referrer).hostname.endsWith("kritere.com") || new URL(document.referrer).hostname.endsWith("musicletter.it"))) {
+    document.body.innerHTML = `<div id="block-message"><h2>Questo sito sta incorporando Zappr, un sito gratuito per guardare la TV italiana online, coprendone il nome e generando introiti tramite la pubblicità.</h2><a href="https://zappr.stream" class="button primary" target="_blank">Clicca qui per passare alla versione vera di Zappr (senza pubblicità e a schermo intero).</a></div>`;
     window.addEventListener("click", () => window.open("https://zappr.stream", "_blank"));
 };
