@@ -669,7 +669,11 @@ const loadStream = async ({ type, url, api = false, name, lcn, logo, fullLogo, r
         };
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        try {
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+        } catch(e) {
+            console.error('generateMetadataImage', e)
+        }
         canvas.toBlob((blob) => {
             const artworkURL = URL.createObjectURL(blob);
     
